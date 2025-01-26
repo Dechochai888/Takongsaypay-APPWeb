@@ -3,51 +3,68 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Upload & Download Images</title>
+  <title>Image Album Manager</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
     }
     .container {
-      max-width: 600px;
+      max-width: 800px;
       margin: auto;
       text-align: center;
     }
-    input[type="file"] {
-      margin: 20px 0;
-    }
-    .file-list {
+    .album {
       margin: 20px 0;
       text-align: left;
+    }
+    .image-list img {
+      max-width: 100px;
+      margin: 5px;
+    }
+    .image-list a {
+      display: inline-block;
+      margin: 5px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Upload & Download Images</h1>
-    <form id="uploadForm" enctype="multipart/form-data">
+    <h1>Image Album Manager</h1>
+    <form id="uploadForm" enctype="multipart/form-data" method="POST" action="/upload">
+      <input type="text" id="albumName" name="album" placeholder="Album Name" required>
       <input type="file" name="file" id="fileInput" accept="image/*" required>
       <button type="submit">Upload</button>
     </form>
-
-    <h2>Uploaded Images</h2>
-    <div class="file-list" id="fileList"></div>
+    <h2>Albums</h2>
+    <div id="albums"></div>
   </div>
 
   <script>
-    const uploadForm = document.getElementById('uploadForm');
-    const fileInput = document.getElementById('fileInput');
-    const fileList = document.getElementById('fileList');
+    const albumsDiv = document.getElementById('albums');
 
-    // Handle file upload
-    uploadForm.addEventListener('submit', async (e) => {
+    async function loadAlbums() {
+      const response = await fetch('/albums');
+      const albums = await response.json();
+
+      albumsDiv.innerHTML = Object.keys(albums).map(albumName => `
+        <div class="album">
+          <h3>${albumName}</h3>
+          <div class="image-list">
+            ${albums[albumName].map(file => `
+              <div>
+                <img src="/uploads/${albumName}/${file}" alt="${file}" style="max-width: 100px;">
+                <a href="/uploads/${albumName}/${file}" download="${file}">Download</a>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const file = fileInput.files[0];
-      if (!file) return alert('Please select a file.');
-
-      const formData = new FormData();
-      formData.append('file', file);
+      const formData = new FormData(e.target);
 
       const response = await fetch('/upload', {
         method: 'POST',
@@ -56,26 +73,14 @@
 
       if (response.ok) {
         alert('File uploaded successfully!');
-        loadFiles();
+        loadAlbums();
       } else {
-        alert('File upload failed.');
+        const errorText = await response.text();
+        alert(`File upload failed: ${errorText}`);
       }
     });
 
-    // Fetch and display uploaded files
-    async function loadFiles() {
-      const response = await fetch('/files');
-      const files = await response.json();
-
-      fileList.innerHTML = files.map(file => `
-        <div>
-          <a href="/uploads/${file}" target="_blank">${file}</a>
-        </div>
-      `).join('');
-    }
-
-    // Load files on page load
-    loadFiles();
+    loadAlbums();
   </script>
 </body>
 </html>
